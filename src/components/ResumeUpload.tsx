@@ -53,17 +53,31 @@ const ResumeUpload = ({ jobId, jobDescription, jobRequirements, onComplete }: Re
     setFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const extractTextFromFile = async (file: File): Promise<string> => {
-    // For text files, read directly
-    if (file.type === "text/plain") {
-      return await file.text();
+  const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove the data URL prefix to get just the base64 string
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const getMimeType = (file: File): string => {
+    // Return the actual mime type or a sensible default
+    if (file.type) return file.type;
+    const ext = file.name.toLowerCase().split('.').pop();
+    switch (ext) {
+      case 'pdf': return 'application/pdf';
+      case 'doc': return 'application/msword';
+      case 'docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      case 'txt': return 'text/plain';
+      default: return 'application/octet-stream';
     }
-    
-    // For PDF/DOC files, we'll send the raw text content
-    // In a production app, you'd use a proper parser
-    // For now, we'll read what we can and let AI handle it
-    const text = await file.text();
-    return text || `[Resume file: ${file.name}]`;
   };
 
   const processFiles = async () => {
@@ -108,15 +122,18 @@ const ResumeUpload = ({ jobId, jobDescription, jobRequirements, onComplete }: Re
           )
         );
 
-        // Extract text from file
-        const resumeText = await extractTextFromFile(uploadedFile.file);
+        // Convert file to base64 for AI processing
+        const fileBase64 = await fileToBase64(uploadedFile.file);
+        const mimeType = getMimeType(uploadedFile.file);
 
-        // Call AI analysis
+        // Call AI analysis with the actual file
         const { data: analysisData, error: analysisError } = await supabase.functions.invoke(
           "analyze-resume",
           {
             body: {
-              resumeText,
+              fileBase64,
+              fileName: uploadedFile.file.name,
+              mimeType,
               jobDescription,
               jobRequirements,
             },
@@ -138,9 +155,6 @@ const ResumeUpload = ({ jobId, jobDescription, jobRequirements, onComplete }: Re
           return text.replace(/\u0000/g, '').replace(/\\u0000/g, '');
         };
 
-        // Sanitize the resume text as well
-        const sanitizedResumeText = sanitizeText(resumeText.substring(0, 10000));
-
         // Save candidate to database
         const { error: insertError } = await supabase.from("candidates").insert({
           job_id: jobId,
@@ -150,7 +164,7 @@ const ResumeUpload = ({ jobId, jobDescription, jobRequirements, onComplete }: Re
           skills: analysisData.skills,
           education: sanitizeText(analysisData.education),
           experience: sanitizeText(analysisData.experience),
-          resume_text: sanitizedResumeText,
+          resume_text: null, // File is stored in storage, no need for text
           resume_file_path: filePath,
           match_score: analysisData.matchScore,
           key_matches: analysisData.keyMatches,
