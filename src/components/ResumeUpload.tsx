@@ -131,16 +131,26 @@ const ResumeUpload = ({ jobId, jobDescription, jobRequirements, onComplete }: Re
           throw new Error(analysisData.error);
         }
 
+        // Sanitize text to remove problematic Unicode escape sequences
+        const sanitizeText = (text: string | null): string | null => {
+          if (!text) return null;
+          // Remove null bytes and other problematic unicode sequences
+          return text.replace(/\u0000/g, '').replace(/\\u0000/g, '');
+        };
+
+        // Sanitize the resume text as well
+        const sanitizedResumeText = sanitizeText(resumeText.substring(0, 10000));
+
         // Save candidate to database
         const { error: insertError } = await supabase.from("candidates").insert({
           job_id: jobId,
-          name: analysisData.name || uploadedFile.file.name.replace(/\.[^/.]+$/, ""),
-          email: analysisData.email,
-          phone: analysisData.phone,
+          name: sanitizeText(analysisData.name) || uploadedFile.file.name.replace(/\.[^/.]+$/, ""),
+          email: sanitizeText(analysisData.email),
+          phone: sanitizeText(analysisData.phone),
           skills: analysisData.skills,
-          education: analysisData.education,
-          experience: analysisData.experience,
-          resume_text: resumeText.substring(0, 10000), // Limit stored text
+          education: sanitizeText(analysisData.education),
+          experience: sanitizeText(analysisData.experience),
+          resume_text: sanitizedResumeText,
           resume_file_path: filePath,
           match_score: analysisData.matchScore,
           key_matches: analysisData.keyMatches,
