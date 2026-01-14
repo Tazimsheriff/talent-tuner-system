@@ -136,6 +136,7 @@ const ResumeUpload = ({ jobId, jobDescription, jobRequirements, onComplete }: Re
               mimeType,
               jobDescription,
               jobRequirements,
+              jobId,
             },
           }
         );
