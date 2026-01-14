@@ -6,7 +6,9 @@ const corsHeaders = {
 };
 
 interface ResumeAnalysisRequest {
-  resumeText: string;
+  fileBase64: string;
+  fileName: string;
+  mimeType: string;
   jobDescription: string;
   jobRequirements?: string;
 }
@@ -17,29 +19,31 @@ serve(async (req) => {
   }
 
   try {
-    const { resumeText, jobDescription, jobRequirements } = await req.json() as ResumeAnalysisRequest;
+    const { fileBase64, fileName, mimeType, jobDescription, jobRequirements } = await req.json() as ResumeAnalysisRequest;
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert ATS (Applicant Tracking System) resume analyzer. Your task is to analyze resumes against job descriptions and provide structured data.
+    console.log(`Processing resume: ${fileName} (${mimeType})`);
 
-Analyze the resume and extract the following information, then compare it with the job description to calculate a match score.
+    const systemPrompt = `You are an expert ATS (Applicant Tracking System) resume analyzer. Your task is to carefully read and analyze the attached resume document, then compare it with the job description.
+
+IMPORTANT: Read the ACTUAL content from the attached resume document. Extract the REAL information - do not make up or assume any details.
 
 You MUST respond with a valid JSON object only, no additional text. Use this exact structure:
 {
-  "name": "Full name of the candidate",
-  "email": "Email address if found, or null",
-  "phone": "Phone number if found, or null",
-  "skills": ["array", "of", "extracted", "skills"],
-  "education": "Summary of education background",
-  "experience": "Summary of work experience with years if available",
+  "name": "Full name of the candidate as shown in the resume",
+  "email": "Email address from the resume, or null if not found",
+  "phone": "Phone number from the resume, or null if not found",
+  "skills": ["array", "of", "actual", "skills", "from", "resume"],
+  "education": "Actual education details from the resume - degrees, institutions, years",
+  "experience": "Actual work experience summary from the resume - companies, roles, duration",
   "matchScore": 85,
-  "keyMatches": ["skill or requirement that matches the job"],
+  "keyMatches": ["specific skills or requirements that match between resume and job"],
   "missingSkills": ["skills required by job but not found in resume"],
-  "summary": "Brief 2-3 sentence analysis of candidate fit"
+  "summary": "Brief 2-3 sentence analysis of candidate fit based on actual resume content"
 }
 
 Match Score Guidelines:
@@ -56,13 +60,30 @@ ${jobDescription}
 
 ${jobRequirements ? `ADDITIONAL REQUIREMENTS:\n${jobRequirements}\n` : ''}
 
-RESUME CONTENT:
-${resumeText}
+Please analyze the attached resume document and provide the structured JSON response with ACTUAL information from the resume.`;
 
-Analyze this resume against the job description and provide the structured JSON response.`;
-
-    console.log("Sending request to Lovable AI...");
+    console.log("Sending request to Lovable AI with document...");
     
+    // Build the messages with the document as an inline data part
+    const messages = [
+      { role: "system", content: systemPrompt },
+      { 
+        role: "user", 
+        content: [
+          {
+            type: "text",
+            text: userPrompt
+          },
+          {
+            type: "image_url",
+            image_url: {
+              url: `data:${mimeType};base64,${fileBase64}`
+            }
+          }
+        ]
+      },
+    ];
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -70,15 +91,15 @@ Analyze this resume against the job description and provide the structured JSON 
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        model: "google/gemini-2.5-flash",
+        messages,
       }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
+      
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
@@ -91,19 +112,18 @@ Analyze this resume against the job description and provide the structured JSON 
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`AI gateway error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
+      console.error("No content in AI response:", JSON.stringify(data));
       throw new Error("No content in AI response");
     }
 
-    console.log("AI Response received:", content.substring(0, 200));
+    console.log("AI Response received:", content.substring(0, 300));
 
     // Parse the JSON response
     let analysisResult;
