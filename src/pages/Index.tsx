@@ -2,17 +2,31 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Users, FileText, BarChart3, Zap, ArrowRight } from "lucide-react";
+import { Users, FileText, BarChart3, Zap, ArrowRight, Briefcase } from "lucide-react";
 
 const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/dashboard");
+        // Check user role and redirect appropriately
+        const { data: roleData } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+        
+        if (roleData?.role === 'hr') {
+          navigate("/dashboard");
+        } else if (roleData?.role === 'job_seeker') {
+          navigate("/jobs");
+        }
       }
-    });
+    };
+    
+    checkSession();
   }, [navigate]);
 
   return (
@@ -26,10 +40,16 @@ const Index = () => {
             </div>
             <span className="text-xl font-semibold">TalentScreen AI</span>
           </div>
-          <Button onClick={() => navigate("/auth")}>
-            Get Started
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => navigate("/login")}>
+              <Briefcase className="h-4 w-4 mr-2" />
+              Find Jobs
+            </Button>
+            <Button onClick={() => navigate("/hr/login")}>
+              HR Login
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -44,13 +64,14 @@ const Index = () => {
           Upload your job description and candidate resumes. Our AI analyzes skills, 
           experience, and contextual fit to rank candidates instantly.
         </p>
-        <div className="flex gap-4 justify-center">
-          <Button size="lg" onClick={() => navigate("/auth")}>
-            Start Screening
+        <div className="flex gap-4 justify-center flex-wrap">
+          <Button size="lg" onClick={() => navigate("/hr/login")}>
+            Start Screening (HR)
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
-          <Button size="lg" variant="outline">
-            Watch Demo
+          <Button size="lg" variant="outline" onClick={() => navigate("/login")}>
+            <Briefcase className="h-4 w-4 mr-2" />
+            Find Jobs
           </Button>
         </div>
       </section>
@@ -88,23 +109,46 @@ const Index = () => {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="container mx-auto px-4 py-16 text-center">
-        <div className="bg-primary rounded-2xl p-12">
-          <h2 className="text-3xl font-bold text-primary-foreground mb-4">
-            Ready to Transform Your Hiring?
-          </h2>
-          <p className="text-primary-foreground/80 mb-6 max-w-xl mx-auto">
-            Join HR teams saving hours on resume screening with AI-powered candidate ranking.
-          </p>
-          <Button 
-            size="lg" 
-            variant="secondary"
-            onClick={() => navigate("/auth")}
-          >
-            Get Started Free
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Button>
+      {/* Two-column CTA */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* HR CTA */}
+          <div className="bg-primary rounded-2xl p-8 text-center">
+            <Users className="h-12 w-12 text-primary-foreground mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-primary-foreground mb-3">
+              For HR Professionals
+            </h2>
+            <p className="text-primary-foreground/80 mb-6">
+              Screen candidates faster with AI-powered resume analysis and ranking.
+            </p>
+            <Button 
+              size="lg" 
+              variant="secondary"
+              onClick={() => navigate("/hr/login")}
+            >
+              HR Portal
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
+          
+          {/* Job Seeker CTA */}
+          <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-8 text-center">
+            <Briefcase className="h-12 w-12 text-white mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-white mb-3">
+              For Job Seekers
+            </h2>
+            <p className="text-white/80 mb-6">
+              Browse job opportunities and apply with just a few clicks.
+            </p>
+            <Button 
+              size="lg" 
+              variant="secondary"
+              onClick={() => navigate("/login")}
+            >
+              Find Jobs
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          </div>
         </div>
       </section>
 
