@@ -62,10 +62,10 @@ export default {
           foreground: "hsl(var(--warning-foreground))",
         },
         neon: {
-          pink: "hsl(var(--neon-pink))",
-          cyan: "hsl(var(--neon-cyan))",
-          purple: "hsl(var(--neon-purple))",
           yellow: "hsl(var(--neon-yellow))",
+          cyan: "hsl(var(--neon-cyan))",
+          pink: "hsl(var(--neon-pink))",
+          red: "hsl(var(--neon-red))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
