@@ -102,17 +102,17 @@ You MUST respond with a valid JSON object only, no additional text. Use this exa
   "matchScore": 85,
   "keyMatches": ["specific skills or requirements that match between resume and job"],
   "missingSkills": ["skills required by job but not found in resume"],
-  "summary": "Brief 2-3 sentence analysis of candidate fit based on actual resume content"
+  "summary": "Brief 2-3 sentence analysis explaining WHY the candidate is a good/poor fit. Be specific about strengths and gaps."
 }
 
 Match Score Guidelines:
-- 90-100: Excellent match, meets almost all requirements
-- 75-89: Strong match, meets most key requirements
-- 60-74: Moderate match, meets some requirements
-- 40-59: Weak match, limited alignment
-- Below 40: Poor match, significant gaps
+- 90-100: Excellent match, meets almost all requirements with strong relevant experience
+- 75-89: Strong match, meets most key requirements with good transferable skills
+- 60-74: Moderate match, meets some requirements but has notable gaps
+- 40-59: Weak match, limited alignment with significant missing skills
+- Below 40: Poor match, does not meet basic requirements
 
-Consider contextual similarity, not just keyword matching. Similar technologies, transferable skills, and relevant experience should boost the score.`;
+SCORING TRANSPARENCY: Consider contextual similarity, not just keyword matching. Similar technologies, transferable skills, and relevant experience should boost the score. Explain your reasoning in the summary field.`;
 
     const userPrompt = `JOB DESCRIPTION:
 ${jobDescription}

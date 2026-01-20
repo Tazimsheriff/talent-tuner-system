@@ -4,7 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2, ChevronDown, ChevronUp, Mail, Phone, GraduationCap, Briefcase } from "lucide-react";
+import { 
+  Trash2, ChevronDown, ChevronUp, Mail, Phone, GraduationCap, 
+  Briefcase, CheckCircle, XCircle, Sparkles 
+} from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,11 +33,14 @@ interface Candidate {
   missing_skills: string[] | null;
   status: string | null;
   created_at: string;
+  is_shortlisted: boolean | null;
+  analysis_summary: string | null;
 }
 
 interface CandidateListProps {
   candidates: Candidate[];
-  onCandidateDeleted: () => void;
+  onCandidateUpdated: () => void;
+  minScoreThreshold?: number;
 }
 
 const getScoreColor = (score: number | null) => {
@@ -53,8 +59,9 @@ const getScoreLabel = (score: number | null) => {
   return "Low";
 };
 
-const CandidateList = ({ candidates, onCandidateDeleted }: CandidateListProps) => {
+const CandidateList = ({ candidates, onCandidateUpdated, minScoreThreshold = 60 }: CandidateListProps) => {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleDelete = async (candidateId: string) => {
@@ -70,7 +77,7 @@ const CandidateList = ({ candidates, onCandidateDeleted }: CandidateListProps) =
         title: "Candidate removed",
         description: "The candidate has been removed from this job.",
       });
-      onCandidateDeleted();
+      onCandidateUpdated();
     } catch (error) {
       console.error("Error deleting candidate:", error);
       toast({
@@ -81,12 +88,82 @@ const CandidateList = ({ candidates, onCandidateDeleted }: CandidateListProps) =
     }
   };
 
+  const handleShortlist = async (candidateId: string, shortlist: boolean) => {
+    setUpdatingId(candidateId);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      const { error } = await supabase
+        .from("candidates")
+        .update({
+          is_shortlisted: shortlist,
+          shortlisted_at: shortlist ? new Date().toISOString() : null,
+          shortlisted_by: shortlist ? user?.id : null,
+        })
+        .eq("id", candidateId);
+
+      if (error) throw error;
+
+      toast({
+        title: shortlist ? "Candidate shortlisted" : "Candidate rejected",
+        description: shortlist 
+          ? "The candidate has been added to your shortlist." 
+          : "The candidate has been marked as rejected.",
+      });
+      onCandidateUpdated();
+    } catch (error) {
+      console.error("Error updating candidate:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to update candidate status",
+      });
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
+  const getShortlistBadge = (candidate: Candidate) => {
+    if (candidate.is_shortlisted === true) {
+      return (
+        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 gap-1">
+          <CheckCircle className="h-3 w-3" />
+          Shortlisted
+        </Badge>
+      );
+    }
+    if (candidate.is_shortlisted === false) {
+      return (
+        <Badge variant="outline" className="border-red-200 text-red-700 gap-1">
+          <XCircle className="h-3 w-3" />
+          Rejected
+        </Badge>
+      );
+    }
+    // Check if auto-shortlist applies
+    if (candidate.match_score && candidate.match_score >= minScoreThreshold) {
+      return (
+        <Badge variant="outline" className="border-amber-200 text-amber-700 gap-1">
+          <Sparkles className="h-3 w-3" />
+          Auto-qualified
+        </Badge>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-3">
       {candidates.map((candidate, index) => (
         <Card 
           key={candidate.id} 
-          className="animate-fade-in"
+          className={`animate-fade-in ${
+            candidate.is_shortlisted === true 
+              ? "border-emerald-200 bg-emerald-50/30" 
+              : candidate.is_shortlisted === false 
+                ? "border-red-200 bg-red-50/30 opacity-75" 
+                : ""
+          }`}
           style={{ animationDelay: `${index * 50}ms` }}
         >
           <CardContent className="pt-4">
@@ -100,7 +177,10 @@ const CandidateList = ({ candidates, onCandidateDeleted }: CandidateListProps) =
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-4">
                   <div>
-                    <h3 className="font-semibold text-lg">{candidate.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-lg">{candidate.name}</h3>
+                      {getShortlistBadge(candidate)}
+                    </div>
                     <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                       {candidate.email && (
                         <span className="flex items-center gap-1">
@@ -127,6 +207,17 @@ const CandidateList = ({ candidates, onCandidateDeleted }: CandidateListProps) =
                     </div>
                   </div>
                 </div>
+
+                {/* AI Summary */}
+                {candidate.analysis_summary && (
+                  <div className="mt-3 p-3 bg-muted/50 rounded-lg border">
+                    <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-1">
+                      <Sparkles className="h-3 w-3" />
+                      AI Analysis
+                    </div>
+                    <p className="text-sm">{candidate.analysis_summary}</p>
+                  </div>
+                )}
 
                 {/* Skills Preview */}
                 {candidate.skills && candidate.skills.length > 0 && (
@@ -222,7 +313,7 @@ const CandidateList = ({ candidates, onCandidateDeleted }: CandidateListProps) =
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center gap-2 mt-4">
+                <div className="flex items-center gap-2 mt-4 flex-wrap">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -240,6 +331,45 @@ const CandidateList = ({ candidates, onCandidateDeleted }: CandidateListProps) =
                       </>
                     )}
                   </Button>
+
+                  {/* Shortlist/Reject Buttons */}
+                  {candidate.is_shortlisted !== true && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                      onClick={() => handleShortlist(candidate.id, true)}
+                      disabled={updatingId === candidate.id}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      Shortlist
+                    </Button>
+                  )}
+                  
+                  {candidate.is_shortlisted !== false && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-red-700 border-red-200 hover:bg-red-50"
+                      onClick={() => handleShortlist(candidate.id, false)}
+                      disabled={updatingId === candidate.id}
+                    >
+                      <XCircle className="h-4 w-4 mr-1" />
+                      Reject
+                    </Button>
+                  )}
+
+                  {/* Undo button if already decided */}
+                  {candidate.is_shortlisted !== null && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleShortlist(candidate.id, null as any)}
+                      disabled={updatingId === candidate.id}
+                    >
+                      Undo
+                    </Button>
+                  )}
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>

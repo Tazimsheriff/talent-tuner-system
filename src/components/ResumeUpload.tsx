@@ -156,7 +156,7 @@ const ResumeUpload = ({ jobId, jobDescription, jobRequirements, onComplete }: Re
           return text.replace(/\u0000/g, '').replace(/\\u0000/g, '');
         };
 
-        // Save candidate to database
+        // Save candidate to database with analysis summary
         const { error: insertError } = await supabase.from("candidates").insert({
           job_id: jobId,
           name: sanitizeText(analysisData.name) || uploadedFile.file.name.replace(/\.[^/.]+$/, ""),
@@ -170,6 +170,7 @@ const ResumeUpload = ({ jobId, jobDescription, jobRequirements, onComplete }: Re
           match_score: analysisData.matchScore,
           key_matches: analysisData.keyMatches,
           missing_skills: analysisData.missingSkills,
+          analysis_summary: sanitizeText(analysisData.summary),
           status: "analyzed",
         });
 
