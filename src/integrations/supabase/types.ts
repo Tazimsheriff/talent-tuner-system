@@ -16,11 +16,13 @@ export type Database = {
     Tables: {
       candidates: {
         Row: {
+          analysis_summary: string | null
           created_at: string
           education: string | null
           email: string | null
           experience: string | null
           id: string
+          is_shortlisted: boolean | null
           job_id: string
           key_matches: string[] | null
           match_score: number | null
@@ -29,15 +31,19 @@ export type Database = {
           phone: string | null
           resume_file_path: string | null
           resume_text: string | null
+          shortlisted_at: string | null
+          shortlisted_by: string | null
           skills: string[] | null
           status: string | null
         }
         Insert: {
+          analysis_summary?: string | null
           created_at?: string
           education?: string | null
           email?: string | null
           experience?: string | null
           id?: string
+          is_shortlisted?: boolean | null
           job_id: string
           key_matches?: string[] | null
           match_score?: number | null
@@ -46,15 +52,19 @@ export type Database = {
           phone?: string | null
           resume_file_path?: string | null
           resume_text?: string | null
+          shortlisted_at?: string | null
+          shortlisted_by?: string | null
           skills?: string[] | null
           status?: string | null
         }
         Update: {
+          analysis_summary?: string | null
           created_at?: string
           education?: string | null
           email?: string | null
           experience?: string | null
           id?: string
+          is_shortlisted?: boolean | null
           job_id?: string
           key_matches?: string[] | null
           match_score?: number | null
@@ -63,6 +73,8 @@ export type Database = {
           phone?: string | null
           resume_file_path?: string | null
           resume_text?: string | null
+          shortlisted_at?: string | null
+          shortlisted_by?: string | null
           skills?: string[] | null
           status?: string | null
         }
@@ -80,7 +92,11 @@ export type Database = {
         Row: {
           created_at: string
           description: string
+          education_level: string | null
           id: string
+          min_experience_years: number | null
+          min_score_threshold: number | null
+          required_skills: string[] | null
           requirements: string | null
           title: string
           updated_at: string
@@ -89,7 +105,11 @@ export type Database = {
         Insert: {
           created_at?: string
           description: string
+          education_level?: string | null
           id?: string
+          min_experience_years?: number | null
+          min_score_threshold?: number | null
+          required_skills?: string[] | null
           requirements?: string | null
           title: string
           updated_at?: string
@@ -98,7 +118,11 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string
+          education_level?: string | null
           id?: string
+          min_experience_years?: number | null
+          min_score_threshold?: number | null
+          required_skills?: string[] | null
           requirements?: string | null
           title?: string
           updated_at?: string
